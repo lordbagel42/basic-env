@@ -13,10 +13,12 @@ terraform {
 }
 
 locals {
-  enable_subdomains = true
+  enable_subdomains = false
 
   workspace_name = lower(data.coder_workspace.me.name)
   user_name = lower(data.coder_workspace.me.owner)
+
+  folder_name = try(element(split("/", data.coder_parameter.git_repo.value), length(split("/", data.coder_parameter.git_repo.value)) - 1), "")
 
   images = {
     javascript = docker_image.javascript_image
@@ -94,6 +96,13 @@ data "coder_parameter" "dotfiles_repo" {
   type    = "string"
 
   mutable = true
+}
+
+# Prompt the user for the git repo URL
+data "coder_parameter" "git_repo" {
+    name          = "git_repo"
+    display_name  = "Git repository"
+    default       = "https://github.com/coder/coder"
 }
 
 data "coder_parameter" "vscode_binary" {
@@ -174,6 +183,11 @@ if ! [ -z "$DOTFILES_REPO" ]; then
   coder dotfiles -y "$DOTFILES_REPO"
   sudo -u root $(which coder) dotfiles -y "$DOTFILES_REPO"
 fi
+
+if [ ! -d "${local.folder_name}" ]
+  then
+  git clone ${data.coder_parameter.git_repo.value}
+  fi
 
 supervisord
 
